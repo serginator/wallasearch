@@ -94,7 +94,6 @@ def main():
 
                 for card in new_cards:
                     if card not in d:
-                        print(card);
                         d.append(card);
                         new_items.append(card);
                 if (len(new_items) > 0):
