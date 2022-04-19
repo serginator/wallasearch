@@ -49,7 +49,7 @@ def main():
                     os._exit(0); # sys.exit(0) doesn't works :S
                 elif opt in ('-s', '--search'):
                     WHAT_TO_SEARCH = arg.replace(' ', '+');
-                    PICKLE_FILE_NAME = arg.replace('+', '_') + '.pickle';
+                    PICKLE_FILE_NAME = arg.replace(' ', '_') + '.pickle';
                 elif opt in ('-t', '--time'):
                     TIME = arg;
                 elif opt == '--city':
@@ -62,14 +62,14 @@ def main():
               + '&user_city=' + USER_CITY + '&country_code=' + COUNTRY_CODE \
               + '&items_count=0&density_type=20&filters_source=quick_filters&order_by=closest';
 
-            step = 6;
+            step = 1;
             keep_going = True;
             full_data = [];
             print('Searching ' + WHAT_TO_SEARCH + '...');
             while keep_going:
                 response = requests.get(URL + '&step=' + str(step));
                 data = response.json()['search_objects'];
-                if len(data) == 0:
+                if len(data) == 0 and len(full_data) > 0:
                     keep_going = False;
                 else:
                     step += 1;
