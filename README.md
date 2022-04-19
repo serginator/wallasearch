@@ -6,13 +6,14 @@ Quick proyect for OSX in `Python3` to search for products in Wallapop, save them
 ### Usage
 
 ```python
-~/wallasearch (master ✔) ᐅ ./wallasearch.py
+~/wallasearch (master ✔) ᐅ pip3 install -r requirements.txt
+~/wallasearch (master ✔) ᐅ python3 wallasearch.py
 
 ################################################
 # Author:   Sergio Ruiz                        #
 # Github:   @serginator                        #
 ################################################
-USAGE: ./wallasearch.py -s <terms_to_search>
+USAGE: python3 wallasearch.py -s <terms_to_search>
 
 OPTIONS:
   -h, --help
@@ -20,7 +21,10 @@ OPTIONS:
   -t, --time <time> (default 60, in seconds)
       --city <city> (default Madrid)
       --country <country_code> (default ES)
-~/wallasearch ᐅ ./wallasearch.py -s "Lovecraft"
+      --telegram (send Telegram notification)
+      --osx (send OSX notification)
+
+~/wallasearch ᐅ python3 wallasearch.py -s "Lovecraft"
 Searching Lovecraft...
 New items:
 
@@ -30,7 +34,6 @@ Lovecraft  - 5.0
 ...
 
 Searching Lovecraft...
-Searching Lovecraft... (every X seconds)
 ```
 
 ### Config
@@ -42,4 +45,18 @@ In the script file there are three constants that you can modify
 LOOP_TIME = 60; # seconds between executions by default
 USER_CITY = "Madrid"; # city to search by default
 COUNTRY_CODE = "ES"; # country code to search by default
+```
+
+### Notifying through OSX
+Just add --osx to the command line and it will send a notification to your OSX desktop.
+
+### Notifying through Telegram
+Just add --telegram to the command line and it will send a notification to your Telegram.
+
+You alsoneed to create a bot (@BotFather), get it's token and your internal id (@RawDataBot), and add it to the .env file.
+Add them to the .env file.
+
+```
+TELEGRAM_BOT_TOKEN="1234567890:XXX"
+TELEGRAM_CHAT_ID="1234567"
 ```
