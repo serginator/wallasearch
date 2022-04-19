@@ -6,13 +6,16 @@ import requests
 import sys
 import getopt
 
+# To load .env file
+from dotenv import dotenv_values
+
 def usage():
     print('');
     print('################################################');
     print('# Author:   Sergio Ruiz                        #');
     print('# Github:   @serginator                        #');
     print('################################################');
-    print('USAGE: ./wallasearch.py -s <terms_to_search>');
+    print('USAGE: python3 wallasearch.py -s <terms_to_search>');
     print('');
     print('OPTIONS:');
     print('  -h, --help');
@@ -20,7 +23,40 @@ def usage():
     print('  -t, --time <time> (default 60, in seconds)');
     print('      --city <city> (default Madrid)');
     print('      --country <country_code> (default ES)');
+    print('      --telegram (send Telegram notification)');
+    print('      --osx (send OSX notification)');
     print('');
+
+
+def send_telegram_notification(message):
+    try:
+        config = dotenv_values('.env');
+        TELEGRAM_BOT_TOKEN=config['TELEGRAM_BOT_TOKEN'];
+        TELEGRAM_CHAT_ID=config['TELEGRAM_CHAT_ID'];
+    except:
+        print('Error loading .env file');
+        os._exit(1);
+
+    try:
+        print('Sending Telegram notification...');
+        url = "https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}".format(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, message)
+        response = requests.get(url)
+    except:
+        print('Error sending Telegram notification');
+        os._exit(1);
+
+def send_osx_notification(message):
+    try:
+        print('Sending OSX notification...');
+        title = 'New items in Wallapop';
+        msg = message;
+        command = f'''
+        osascript -e 'display notification "{msg}" with title "{title}"'
+        '''
+        os.system(command);
+    except:
+        print('Error sending OSX notification');
+        os._exit(1);
 
 def main():
 
@@ -28,9 +64,11 @@ def main():
     LOOP_TIME = 60; # seconds between executions by default
     USER_CITY = 'Madrid'; # city to search by default
     COUNTRY_CODE = 'ES'; # country code to search by default
+    TELEGRAM_NOTIFICATION = False; # don't send Telegram notification by default
+    OSX_NOTIFICATION = False; # don't send OSX notification by default
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'city=', 'country=']);
+        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'city=', 'country=', 'telegram', 'osx']);
     except getopt.GetoptError:
         usage();
         sys.exit(2);
@@ -53,6 +91,10 @@ def main():
                 USER_CITY = arg;
             elif opt == '--country':
                 COUNTRY_CODE = arg;
+            elif opt == '--telegram':
+                TELEGRAM_NOTIFICATION = True;
+            elif opt == '--osx':
+                OSX_NOTIFICATION = True;
 
         URL = 'https://api.wallapop.com/api/v3/general/search?' \
             + 'keywords=' + WHAT_TO_SEARCH + '&start=0' \
@@ -120,12 +162,12 @@ def main():
                     print(item['title'] + ' - ' + str(item['price']));
                     msg += item['title'] + ' - ' + str(item['price']) + '\n';
                 print('\n');
-                title = 'New items in Wallapop';
-                message = msg;
-                command = f'''
-                osascript -e 'display notification "{message}" with title "{title}"'
-                '''
-                os.system(command);
+
+                if (OSX_NOTIFICATION):
+                    send_osx_notification(msg);
+
+                if TELEGRAM_NOTIFICATION:
+                    send_telegram_notification(msg);
 
         except Exception as e:
             print(e);
