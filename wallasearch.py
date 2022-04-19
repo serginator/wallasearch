@@ -38,34 +38,40 @@ def main():
         usage();
         os._exit(0); # sys.exit(0) doesn't works :S
 
+    try:
+        # get params from command line
+        for opt, arg in opts:
+            if opt in ('-h', '--help'):
+                usage();
+                os._exit(0); # sys.exit(0) doesn't works :S
+            elif opt in ('-s', '--search'):
+                WHAT_TO_SEARCH = arg.replace(' ', '+');
+                PICKLE_FILE_NAME = arg.replace(' ', '_') + '.pickle';
+            elif opt in ('-t', '--time'):
+                TIME = arg;
+            elif opt == '--city':
+                USER_CITY = arg;
+            elif opt == '--country':
+                COUNTRY_CODE = arg;
+
+        URL = 'https://api.wallapop.com/api/v3/general/search?' \
+            + 'keywords=' + WHAT_TO_SEARCH + '&start=0' \
+            + '&user_city=' + USER_CITY + '&country_code=' + COUNTRY_CODE \
+            + '&items_count=0&density_type=20&filters_source=quick_filters&order_by=closest';
+    except Exception as e:
+            print(e);
+            print('Error retrieving params for wallasearch');
+            os._exit(2);
+
+    print('Searching ' + WHAT_TO_SEARCH + '...');
+
     while True:
         start_time = time.time();
-
         try:
-            # get params from command line
-            for opt, arg in opts:
-                if opt in ('-h', '--help'):
-                    usage();
-                    os._exit(0); # sys.exit(0) doesn't works :S
-                elif opt in ('-s', '--search'):
-                    WHAT_TO_SEARCH = arg.replace(' ', '+');
-                    PICKLE_FILE_NAME = arg.replace(' ', '_') + '.pickle';
-                elif opt in ('-t', '--time'):
-                    TIME = arg;
-                elif opt == '--city':
-                    USER_CITY = arg;
-                elif opt == '--country':
-                    COUNTRY_CODE = arg;
-
-            URL = 'https://api.wallapop.com/api/v3/general/search?' \
-              + 'keywords=' + WHAT_TO_SEARCH + '&start=0' \
-              + '&user_city=' + USER_CITY + '&country_code=' + COUNTRY_CODE \
-              + '&items_count=0&density_type=20&filters_source=quick_filters&order_by=closest';
-
             step = 1;
             keep_going = True;
             full_data = [];
-            print('Searching ' + WHAT_TO_SEARCH + '...');
+
             while keep_going:
                 response = requests.get(URL + '&step=' + str(step));
                 data = response.json()['search_objects'];
@@ -108,7 +114,7 @@ def main():
                 new_items = new_cards;
 
             if (len(new_items) > 0):
-                print('New items:\n');
+                print('New items found:\n');
                 msg = ''
                 for item in new_items:
                     print(item['title'] + ' - ' + str(item['price']));
