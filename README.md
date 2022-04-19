@@ -53,10 +53,18 @@ Just add --osx to the command line and it will send a notification to your OSX d
 ### Notifying through Telegram
 Just add --telegram to the command line and it will send a notification to your Telegram.
 
-You alsoneed to create a bot (@BotFather), get it's token and your internal id (@RawDataBot), and add it to the .env file.
+You also need to create a bot (@BotFather), get it's token and your internal id (@RawDataBot), and add it to the .env file.
 Add them to the .env file.
 
 ```
 TELEGRAM_BOT_TOKEN="1234567890:XXX"
 TELEGRAM_CHAT_ID="1234567"
+```
+
+### Adding search term in .env
+
+You can add a the term to search in the .env file to avoid typing it every time.
+
+```
+WHAT_TO_SEARCH="Lovecraft"
 ```

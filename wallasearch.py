@@ -7,7 +7,7 @@ import sys
 import getopt
 
 # To load .env file
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 
 def usage():
     print('');
@@ -30,9 +30,8 @@ def usage():
 
 def send_telegram_notification(message):
     try:
-        config = dotenv_values('.env');
-        TELEGRAM_BOT_TOKEN=config['TELEGRAM_BOT_TOKEN'];
-        TELEGRAM_CHAT_ID=config['TELEGRAM_CHAT_ID'];
+        TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN');
+        TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID');
     except:
         print('Error loading .env file');
         os._exit(1);
@@ -66,6 +65,9 @@ def main():
     COUNTRY_CODE = 'ES'; # country code to search by default
     TELEGRAM_NOTIFICATION = False; # don't send Telegram notification by default
     OSX_NOTIFICATION = False; # don't send OSX notification by default
+    WHAT_TO_SEARCH = None; # what to search by default
+
+    load_dotenv();
 
     try:
         opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'city=', 'country=', 'telegram', 'osx']);
@@ -95,6 +97,11 @@ def main():
                 TELEGRAM_NOTIFICATION = True;
             elif opt == '--osx':
                 OSX_NOTIFICATION = True;
+
+        if (WHAT_TO_SEARCH == None):
+            WHAT_TO_SEARCH=os.getenv('WHAT_TO_SEARCH').replace(' ', '+');
+            PICKLE_FILE_NAME = os.getenv('WHAT_TO_SEARCH').replace(' ', '_') + '.pickle';
+
 
         URL = 'https://api.wallapop.com/api/v3/general/search?' \
             + 'keywords=' + WHAT_TO_SEARCH + '&start=0' \
