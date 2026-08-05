@@ -76,12 +76,17 @@ def send_desktop_notification(message):
     try:
         import platform
         print('Sending desktop notification...')
+        # Truncate to first line + item count so the notification fits
+        lines = [l for l in message.strip().splitlines() if l]
+        summary = lines[0]
+        if len(lines) > 1:
+            summary += f' (+{len(lines) - 1} more)'
         if platform.system() == 'Darwin':
-            safe = message.replace('"', "'")
-            os.system(f'osascript -e \'display notification "{safe}" with title "New items in Wallapop"\'')
+            safe = summary.replace('"', "'").replace('\\', '')
+            os.system(f'osascript -e \'display notification "{safe}" with title "New items in Wallapop" sound name "default"\'')
         else:
             from plyer import notification
-            notification.notify(title='New items in Wallapop', message=message, timeout=10)
+            notification.notify(title='New items in Wallapop', message=summary, timeout=10)
     except:
         print('Error sending desktop notification')
         os._exit(1)
