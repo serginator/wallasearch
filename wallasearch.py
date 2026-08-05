@@ -74,9 +74,14 @@ def send_telegram_notification(message):
 
 def send_desktop_notification(message):
     try:
-        from plyer import notification
+        import platform
         print('Sending desktop notification...')
-        notification.notify(title='New items in Wallapop', message=message, timeout=10)
+        if platform.system() == 'Darwin':
+            safe = message.replace('"', "'")
+            os.system(f'osascript -e \'display notification "{safe}" with title "New items in Wallapop"\'')
+        else:
+            from plyer import notification
+            notification.notify(title='New items in Wallapop', message=message, timeout=10)
     except:
         print('Error sending desktop notification')
         os._exit(1)
