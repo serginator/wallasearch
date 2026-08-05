@@ -37,7 +37,6 @@ OPTIONS:
   -h, --help
   -s, --search <terms> (if more than one word, use quotes)
   -t, --time <time> (default 60, in seconds)
-      --city <city> (default Madrid)
       --country <country_code> (default ES)
       --telegram (send Telegram notification)
       --notify (send desktop notification)
@@ -60,12 +59,11 @@ Searching Lovecraft...
 
 ### Config
 
-In the script file there are three constants that you can modify:
+In the script file there are two constants that you can modify:
 
 ```python
-LOOP_TIME = 60; # seconds between executions by default
-USER_CITY = "Madrid"; # city to search by default
-COUNTRY_CODE = "ES"; # country code to search by default
+LOOP_TIME = 60  # seconds between executions by default
+COUNTRY_CODE = 'ES'  # country code to search by default
 ```
 
 ### Notifying through desktop
