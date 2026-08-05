@@ -38,6 +38,7 @@ OPTIONS:
   -s, --search <terms> (if more than one word, use quotes)
   -t, --time <time> (default 60, in seconds)
       --country <country_code> (default ES)
+      --postal-code <postal_code> (resolve location via postal code, otherwise uses geo-IP)
       --telegram (send Telegram notification)
       --notify (send desktop notification)
 ```
@@ -79,6 +80,14 @@ You need to create a bot (@BotFather), get its token and your internal id (@RawD
 ```
 TELEGRAM_BOT_TOKEN="1234567890:XXX"
 TELEGRAM_CHAT_ID="1234567"
+```
+
+### Running on a server (Heroku, etc.)
+
+Geo-IP on remote servers resolves to the datacenter location, not yours. Use `--postal-code` to fix the search area, or set it in `.env`:
+
+```
+POSTAL_CODE=28012
 ```
 
 ### Adding search term in .env

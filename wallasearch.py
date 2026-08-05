@@ -18,7 +18,18 @@ API_HEADERS = {
 }
 API_HEADERS['trackinguserid'] = API_HEADERS['mpid']
 
-def fetch_items(keywords, country_code):
+def geocode(postal_code, country_code):
+    res = requests.get(
+        'https://nominatim.openstreetmap.org/search',
+        params={'postalcode': postal_code, 'countrycodes': country_code.lower(), 'format': 'json', 'limit': 1},
+        headers={'User-Agent': 'wallasearch/1.0'},
+    ).json()
+    if not res:
+        raise ValueError(f'Postal code {postal_code} not found for country {country_code}')
+    return res[0]['lat'], res[0]['lon']
+
+
+def fetch_items(keywords, country_code, lat=None, lon=None):
     comp_url = (
         'https://api.wallapop.com/api/v3/search/components'
         f'?keywords={keywords}&order_by=newest&source=deep_link'
@@ -29,6 +40,8 @@ def fetch_items(keywords, country_code):
 
     organic = next(c for c in comp_data['components'] if c.get('id') == 'organic_search_results')
     params = {**organic['type_data']['query_params'], 'search_country': country_code}
+    if lat and lon:
+        params['latitude'], params['longitude'] = lat, lon
 
     items = requests.get(
         'https://api.wallapop.com/api/v3/search/section',
@@ -81,6 +94,7 @@ def usage():
     print('  -s, --search <terms> (if more than one word, use quotes)')
     print('  -t, --time <time> (default 60, in seconds)')
     print('      --country <country_code> (default ES)')
+    print('      --postal-code <postal_code> (resolve location via postal code, otherwise uses geo-IP)')
     print('      --telegram (send Telegram notification)')
     print('      --notify (send desktop notification)')
     print('')
@@ -89,6 +103,7 @@ def usage():
 def main():
     LOOP_TIME = 60
     COUNTRY_CODE = 'ES'
+    POSTAL_CODE = None
     TELEGRAM_NOTIFICATION = False
     DESKTOP_NOTIFICATION = False
     WHAT_TO_SEARCH = None
@@ -96,7 +111,7 @@ def main():
     load_dotenv()
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'country=', 'telegram', 'notify'])
+        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'country=', 'postal-code=', 'telegram', 'notify'])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -116,6 +131,8 @@ def main():
                 LOOP_TIME = int(arg)
             elif opt == '--country':
                 COUNTRY_CODE = arg
+            elif opt == '--postal-code':
+                POSTAL_CODE = arg
             elif opt == '--telegram':
                 TELEGRAM_NOTIFICATION = True
             elif opt == '--notify':
@@ -125,17 +142,22 @@ def main():
             WHAT_TO_SEARCH = os.getenv('WHAT_TO_SEARCH').replace(' ', '+')
             PICKLE_FILE_NAME = os.getenv('WHAT_TO_SEARCH').replace(' ', '_') + '.pickle'
 
+        if POSTAL_CODE is None:
+            POSTAL_CODE = os.getenv('POSTAL_CODE')
+
     except Exception as e:
         print(e)
         print('Error retrieving params for wallasearch')
         os._exit(2)
+
+    lat, lon = geocode(POSTAL_CODE, COUNTRY_CODE) if POSTAL_CODE else (None, None)
 
     print('Searching ' + WHAT_TO_SEARCH + '...')
 
     while True:
         start_time = time.time()
         try:
-            new_cards = fetch_items(WHAT_TO_SEARCH, COUNTRY_CODE)
+            new_cards = fetch_items(WHAT_TO_SEARCH, COUNTRY_CODE, lat, lon)
 
             new_items = []
             if os.path.exists(PICKLE_FILE_NAME):
