@@ -82,13 +82,43 @@ TELEGRAM_BOT_TOKEN="1234567890:XXX"
 TELEGRAM_CHAT_ID="1234567"
 ```
 
-### Running on a server (Heroku, etc.)
+### Running on Heroku
 
-Geo-IP on remote servers resolves to the datacenter location, not yours. Use `--postal-code` to fix the search area, or set it in `.env`:
+> **Note:** Heroku removed their free tier in Nov 2022. The cheapest option is an Eco dyno (~$5/month).
 
+The `Procfile` is already configured to run the script as a worker with Telegram notifications (no desktop on a server). All configuration goes through Heroku config vars instead of a `.env` file.
+
+**1. Create the app and set config vars:**
+
+```bash
+heroku create
+heroku config:set WHAT_TO_SEARCH="Lovecraft"
+heroku config:set TELEGRAM_BOT_TOKEN="1234567890:XXX"
+heroku config:set TELEGRAM_CHAT_ID="1234567"
+heroku config:set POSTAL_CODE="28012"
 ```
-POSTAL_CODE=28012
+
+Geo-IP on Heroku's servers resolves to a US datacenter, so `POSTAL_CODE` is important to get results near you.
+
+**2. Deploy:**
+
+```bash
+git push heroku master
 ```
+
+**3. Start the worker:**
+
+```bash
+heroku ps:scale worker=1
+```
+
+**4. Check logs:**
+
+```bash
+heroku logs --tail
+```
+
+To stop it: `heroku ps:scale worker=0`
 
 ### Adding search term in .env
 
