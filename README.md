@@ -120,6 +120,52 @@ heroku logs --tail
 
 To stop it: `heroku ps:scale worker=0`
 
+### Running on Koyeb
+
+> **Note:** Koyeb's free tier only supports web services (which sleep after inactivity). Worker services require a paid plan — the cheapest is `eco-nano` at ~$1.61/month, still cheaper than Heroku.
+
+Koyeb ignores the `worker:` prefix in the Procfile, so the run command must be set explicitly in the service config.
+
+**1. Create a Worker service in the Koyeb dashboard:**
+
+- Source: GitHub → select your `wallasearch` repo, branch `master`
+- Builder: Buildpack (auto-detects Python via `requirements.txt`)
+- Run command: `python wallasearch.py --telegram`
+- Service type: **Worker**
+- Instance: `eco-nano`
+- Region: Frankfurt or Washington D.C.
+
+**2. Set environment variables** in the service settings:
+
+```
+WHAT_TO_SEARCH=Lovecraft
+TELEGRAM_BOT_TOKEN=1234567890:XXX
+TELEGRAM_CHAT_ID=1234567
+POSTAL_CODE=28012
+```
+
+`POSTAL_CODE` is important — Koyeb servers are in Frankfurt or Washington D.C., so geo-IP won't give you local results.
+
+**3. Deploy** — Koyeb will build and start the worker automatically on every push to `master`.
+
+**Via CLI:**
+
+```bash
+koyeb apps create wallasearch
+koyeb services create wallasearch \
+  --app wallasearch \
+  --git github.com/YOUR_USERNAME/wallasearch \
+  --git-branch master \
+  --git-buildpack-run-command "python wallasearch.py --telegram" \
+  --type worker \
+  --instance-type eco-nano \
+  --region was \
+  --env WHAT_TO_SEARCH=Lovecraft \
+  --env TELEGRAM_BOT_TOKEN=your_token \
+  --env TELEGRAM_CHAT_ID=your_chat_id \
+  --env POSTAL_CODE=28012
+```
+
 ### Adding search term in .env
 
 You can add the term to search in the `.env` file to avoid typing it every time:
