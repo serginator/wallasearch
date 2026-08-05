@@ -1,4 +1,5 @@
 venv
+.venv
 *.pickle
 
 # dotenv environment variables file

@@ -24,7 +24,7 @@ def usage():
     print('      --city <city> (default Madrid)');
     print('      --country <country_code> (default ES)');
     print('      --telegram (send Telegram notification)');
-    print('      --osx (send OSX notification)');
+    print('      --notify (send desktop notification)');
     print('');
 
 
@@ -44,17 +44,13 @@ def send_telegram_notification(message):
         print('Error sending Telegram notification');
         os._exit(1);
 
-def send_osx_notification(message):
+def send_desktop_notification(message):
     try:
-        print('Sending OSX notification...');
-        title = 'New items in Wallapop';
-        msg = message;
-        command = f'''
-        osascript -e 'display notification "{msg}" with title "{title}"'
-        '''
-        os.system(command);
+        from plyer import notification
+        print('Sending desktop notification...');
+        notification.notify(title='New items in Wallapop', message=message, timeout=10);
     except:
-        print('Error sending OSX notification');
+        print('Error sending desktop notification');
         os._exit(1);
 
 def main():
@@ -64,13 +60,13 @@ def main():
     USER_CITY = 'Madrid'; # city to search by default
     COUNTRY_CODE = 'ES'; # country code to search by default
     TELEGRAM_NOTIFICATION = False; # don't send Telegram notification by default
-    OSX_NOTIFICATION = False; # don't send OSX notification by default
+    DESKTOP_NOTIFICATION = False; # don't send desktop notification by default
     WHAT_TO_SEARCH = None; # what to search by default
 
     load_dotenv();
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'city=', 'country=', 'telegram', 'osx']);
+        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'city=', 'country=', 'telegram', 'notify']);
     except getopt.GetoptError:
         usage();
         sys.exit(2);
@@ -95,8 +91,8 @@ def main():
                 COUNTRY_CODE = arg;
             elif opt == '--telegram':
                 TELEGRAM_NOTIFICATION = True;
-            elif opt == '--osx':
-                OSX_NOTIFICATION = True;
+            elif opt == '--notify':
+                DESKTOP_NOTIFICATION = True;
 
         if (WHAT_TO_SEARCH == None):
             WHAT_TO_SEARCH=os.getenv('WHAT_TO_SEARCH').replace(' ', '+');
@@ -170,8 +166,8 @@ def main():
                     msg += item['title'] + ' - ' + str(item['price']) + '\n';
                 print('\n');
 
-                if (OSX_NOTIFICATION):
-                    send_osx_notification(msg);
+                if (DESKTOP_NOTIFICATION):
+                    send_desktop_notification(msg);
 
                 if TELEGRAM_NOTIFICATION:
                     send_telegram_notification(msg);
