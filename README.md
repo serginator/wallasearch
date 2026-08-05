@@ -1,13 +1,31 @@
 wallasearch
 ===========
 
-Quick proyect for OSX in `Python3` to search for products in Wallapop, save them in pickle files and keep searching every X seconds (60 by default) to monitorize for new products. It will warn you when a new product is found with a notification in the system. If you find the text `a` it will create a file `a.pickle` with the results, so when you search for it again it will only show the new results.
+Quick project for `Python3` to search for products in Wallapop, save them in pickle files and keep searching every X seconds (60 by default) to monitor for new products. It will warn you when a new product is found with a desktop notification. If you search for `a` it will create a file `a.pickle` with the results, so when you search again it will only show new results.
+
+Works on Windows, macOS, and Linux.
+
+### Setup
+
+Create a virtual environment and install dependencies:
+
+```bash
+python -m venv .venv
+```
+
+Activate it:
+- **macOS/Linux:** `source .venv/bin/activate`
+- **Windows:** `.venv\Scripts\activate`
+
+Then install:
+```bash
+pip install -r requirements.txt
+```
 
 ### Usage
 
-```python
-~/wallasearch (master ✔) ᐅ pip3 install -r requirements.txt
-~/wallasearch (master ✔) ᐅ python3 wallasearch.py
+```
+python wallasearch.py
 
 ################################################
 # Author:   Sergio Ruiz                        #
@@ -19,12 +37,16 @@ OPTIONS:
   -h, --help
   -s, --search <terms> (if more than one word, use quotes)
   -t, --time <time> (default 60, in seconds)
-      --city <city> (default Madrid)
       --country <country_code> (default ES)
+      --postal-code <postal_code> (resolve location via postal code, otherwise uses geo-IP)
       --telegram (send Telegram notification)
-      --osx (send OSX notification)
+      --notify (send desktop notification)
+```
 
-~/wallasearch ᐅ python3 wallasearch.py -s "Lovecraft"
+Example:
+
+```
+~/wallasearch ᐅ python wallasearch.py -s "Lovecraft"
 Searching Lovecraft...
 New items:
 
@@ -38,32 +60,115 @@ Searching Lovecraft...
 
 ### Config
 
-In the script file there are three constants that you can modify
+In the script file there are two constants that you can modify:
 
 ```python
-# default
-LOOP_TIME = 60; # seconds between executions by default
-USER_CITY = "Madrid"; # city to search by default
-COUNTRY_CODE = "ES"; # country code to search by default
+LOOP_TIME = 60  # seconds between executions by default
+COUNTRY_CODE = 'ES'  # country code to search by default
 ```
 
-### Notifying through OSX
-Just add --osx to the command line and it will send a notification to your OSX desktop.
+### Notifying through desktop
+
+Add `--notify` to the command line and it will send a native desktop notification (works on Windows, macOS, and Linux via `plyer`).
 
 ### Notifying through Telegram
-Just add --telegram to the command line and it will send a notification to your Telegram.
 
-You also need to create a bot (@BotFather), get it's token and your internal id (@RawDataBot), and add it to the .env file.
-Add them to the .env file.
+Add `--telegram` to the command line and it will send a notification to your Telegram.
+
+You need to create a bot (@BotFather), get its token and your internal id (@RawDataBot), then add them to the `.env` file:
 
 ```
 TELEGRAM_BOT_TOKEN="1234567890:XXX"
 TELEGRAM_CHAT_ID="1234567"
 ```
 
+### Running on Heroku
+
+> **Note:** Heroku removed their free tier in Nov 2022. The cheapest option is an Eco dyno (~$5/month).
+
+The `Procfile` is already configured to run the script as a worker with Telegram notifications (no desktop on a server). All configuration goes through Heroku config vars instead of a `.env` file.
+
+**1. Create the app and set config vars:**
+
+```bash
+heroku create
+heroku config:set WHAT_TO_SEARCH="Lovecraft"
+heroku config:set TELEGRAM_BOT_TOKEN="1234567890:XXX"
+heroku config:set TELEGRAM_CHAT_ID="1234567"
+heroku config:set POSTAL_CODE="28012"
+```
+
+Geo-IP on Heroku's servers resolves to a US datacenter, so `POSTAL_CODE` is important to get results near you.
+
+**2. Deploy:**
+
+```bash
+git push heroku master
+```
+
+**3. Start the worker:**
+
+```bash
+heroku ps:scale worker=1
+```
+
+**4. Check logs:**
+
+```bash
+heroku logs --tail
+```
+
+To stop it: `heroku ps:scale worker=0`
+
+### Running on Koyeb
+
+> **Note:** Koyeb's free tier only supports web services (which sleep after inactivity). Worker services require a paid plan — the cheapest is `eco-nano` at ~$1.61/month, still cheaper than Heroku.
+
+Koyeb ignores the `worker:` prefix in the Procfile, so the run command must be set explicitly in the service config.
+
+**1. Create a Worker service in the Koyeb dashboard:**
+
+- Source: GitHub → select your `wallasearch` repo, branch `master`
+- Builder: Buildpack (auto-detects Python via `requirements.txt`)
+- Run command: `python wallasearch.py --telegram`
+- Service type: **Worker**
+- Instance: `eco-nano`
+- Region: Frankfurt or Washington D.C.
+
+**2. Set environment variables** in the service settings:
+
+```
+WHAT_TO_SEARCH=Lovecraft
+TELEGRAM_BOT_TOKEN=1234567890:XXX
+TELEGRAM_CHAT_ID=1234567
+POSTAL_CODE=28012
+```
+
+`POSTAL_CODE` is important — Koyeb servers are in Frankfurt or Washington D.C., so geo-IP won't give you local results.
+
+**3. Deploy** — Koyeb will build and start the worker automatically on every push to `master`.
+
+**Via CLI:**
+
+```bash
+koyeb apps create wallasearch
+koyeb services create wallasearch \
+  --app wallasearch \
+  --git github.com/YOUR_USERNAME/wallasearch \
+  --git-branch master \
+  --git-buildpack-run-command "python wallasearch.py --telegram" \
+  --type worker \
+  --instance-type eco-nano \
+  --region was \
+  --env WHAT_TO_SEARCH=Lovecraft \
+  --env TELEGRAM_BOT_TOKEN=your_token \
+  --env TELEGRAM_CHAT_ID=your_chat_id \
+  --env POSTAL_CODE=28012
+```
+
 ### Adding search term in .env
 
-You can add a the term to search in the .env file to avoid typing it every time.
+You can add the term to search in the `.env` file to avoid typing it every time:
 
 ```
 WHAT_TO_SEARCH="Lovecraft"
