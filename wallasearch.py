@@ -30,10 +30,10 @@ def geocode(postal_code, country_code):
     return res[0]['lat'], res[0]['lon']
 
 
-def fetch_items(keywords, country_code, lat=None, lon=None, min_price=None, max_price=None):
+def _fetch_section_items(keywords, order_by, country_code, lat=None, lon=None, min_price=None, max_price=None):
     comp_url = (
         'https://api.wallapop.com/api/v3/search/components'
-        f'?keywords={keywords}&order_by=newest&source=deep_link'
+        f'?keywords={keywords}&order_by={order_by}&source=deep_link'
     )
     if min_price is not None:
         comp_url += f'&min_sale_price={min_price}'
@@ -54,11 +54,20 @@ def fetch_items(keywords, country_code, lat=None, lon=None, min_price=None, max_
     if max_price is not None:
         params['max_sale_price'] = max_price
 
-    items = requests.get(
+    return requests.get(
         'https://api.wallapop.com/api/v3/search/section',
         params=params,
         headers={**API_HEADERS, 'Accept': 'application/json, text/plain, */*'},
     ).json()['data']['section']['items']
+
+
+def fetch_items(keywords, country_code, lat=None, lon=None, min_price=None, max_price=None):
+    # Wallapop's API sometimes returns 0 results for order_by=newest on certain
+    # (usually multi-word) keyword searches, even though the same search works
+    # fine with order_by=most_relevance. Fall back to most_relevance in that case.
+    items = _fetch_section_items(keywords, 'newest', country_code, lat, lon, min_price, max_price)
+    if not items:
+        items = _fetch_section_items(keywords, 'most_relevance', country_code, lat, lon, min_price, max_price)
 
     return [
         {
