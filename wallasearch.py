@@ -6,6 +6,7 @@ import uuid
 import requests
 import sys
 import getopt
+import urllib.parse
 
 from dotenv import load_dotenv
 
@@ -29,11 +30,16 @@ def geocode(postal_code, country_code):
     return res[0]['lat'], res[0]['lon']
 
 
-def fetch_items(keywords, country_code, lat=None, lon=None):
+def fetch_items(keywords, country_code, lat=None, lon=None, min_price=None, max_price=None):
     comp_url = (
         'https://api.wallapop.com/api/v3/search/components'
         f'?keywords={keywords}&order_by=newest&source=deep_link'
     )
+    if min_price is not None:
+        comp_url += f'&min_sale_price={min_price}'
+    if max_price is not None:
+        comp_url += f'&max_sale_price={max_price}'
+
     comp_data = requests.get(
         comp_url, headers={**API_HEADERS, 'Accept': 'application/json; sequence=v2'}
     ).json()
@@ -43,6 +49,11 @@ def fetch_items(keywords, country_code, lat=None, lon=None):
     if lat and lon:
         params['latitude'], params['longitude'] = lat, lon
 
+    if min_price is not None:
+        params['min_sale_price'] = min_price
+    if max_price is not None:
+        params['max_sale_price'] = max_price
+
     items = requests.get(
         'https://api.wallapop.com/api/v3/search/section',
         params=params,
@@ -50,7 +61,12 @@ def fetch_items(keywords, country_code, lat=None, lon=None):
     ).json()['data']['section']['items']
 
     return [
-        {'id': e['id'], 'title': e['title'], 'price': e['price']['amount']}
+        {
+            'id': e['id'], 
+            'title': e['title'], 
+            'price': e['price']['amount'],
+            'web_slug': e.get('web_slug', '')
+        }
         for e in items
         if not e['reserved']['flag']
     ]
@@ -66,7 +82,8 @@ def send_telegram_notification(message):
 
     try:
         print('Sending Telegram notification...')
-        url = "https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}".format(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, message)
+        encoded_message = urllib.parse.quote(message)
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={encoded_message}&disable_web_page_preview=false"
         requests.get(url)
     except:
         print('Error sending Telegram notification')
@@ -105,6 +122,8 @@ def usage():
     print('  -t, --time <time> (default 60, in seconds)')
     print('      --country <country_code> (default ES)')
     print('      --postal-code <postal_code> (resolve location via postal code, otherwise uses geo-IP)')
+    print('      --min-price <amount> (minimum price filter)')
+    print('      --max-price <amount> (maximum price filter)')
     print('      --telegram (send Telegram notification)')
     print('      --notify (send desktop notification)')
     print('')
@@ -114,6 +133,8 @@ def main():
     LOOP_TIME = 60
     COUNTRY_CODE = 'ES'
     POSTAL_CODE = None
+    MIN_PRICE = None
+    MAX_PRICE = None
     TELEGRAM_NOTIFICATION = False
     DESKTOP_NOTIFICATION = False
     WHAT_TO_SEARCH = None
@@ -121,7 +142,7 @@ def main():
     load_dotenv()
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'country=', 'postal-code=', 'telegram', 'notify'])
+        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'country=', 'postal-code=', 'min-price=', 'max-price=', 'telegram', 'notify'])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -136,21 +157,30 @@ def main():
                 os._exit(0)
             elif opt in ('-s', '--search'):
                 WHAT_TO_SEARCH = arg.replace(' ', '+')
-                PICKLE_FILE_NAME = arg.replace(' ', '_') + '.pickle'
+                RAW_SEARCH = arg
             elif opt in ('-t', '--time'):
                 LOOP_TIME = int(arg)
             elif opt == '--country':
                 COUNTRY_CODE = arg
             elif opt == '--postal-code':
                 POSTAL_CODE = arg
+            elif opt == '--min-price':
+                MIN_PRICE = float(arg)
+            elif opt == '--max-price':
+                MAX_PRICE = float(arg)
             elif opt == '--telegram':
                 TELEGRAM_NOTIFICATION = True
             elif opt == '--notify':
                 DESKTOP_NOTIFICATION = True
 
         if WHAT_TO_SEARCH is None:
-            WHAT_TO_SEARCH = os.getenv('WHAT_TO_SEARCH').replace(' ', '+')
-            PICKLE_FILE_NAME = os.getenv('WHAT_TO_SEARCH').replace(' ', '_') + '.pickle'
+            RAW_SEARCH = os.getenv('WHAT_TO_SEARCH')
+            WHAT_TO_SEARCH = RAW_SEARCH.replace(' ', '+')
+
+        filename_str = RAW_SEARCH.replace(' ', '_')
+        if MIN_PRICE: filename_str += f'_min{MIN_PRICE}'
+        if MAX_PRICE: filename_str += f'_max{MAX_PRICE}'
+        PICKLE_FILE_NAME = filename_str + '.pickle'
 
         if POSTAL_CODE is None:
             POSTAL_CODE = os.getenv('POSTAL_CODE')
@@ -167,7 +197,7 @@ def main():
     while True:
         start_time = time.time()
         try:
-            new_cards = fetch_items(WHAT_TO_SEARCH, COUNTRY_CODE, lat, lon)
+            new_cards = fetch_items(WHAT_TO_SEARCH, COUNTRY_CODE, lat, lon, MIN_PRICE, MAX_PRICE)
 
             new_items = []
             if os.path.exists(PICKLE_FILE_NAME):
@@ -190,9 +220,12 @@ def main():
                 print('New items found:\n')
                 msg = ''
                 for item in new_items:
-                    print(item['title'] + ' - ' + str(item['price']))
-                    msg += item['title'] + ' - ' + str(item['price']) + '\n'
-                print('')
+                    slug = item.get('web_slug', '')
+                    item_url = f"https://es.wallapop.com/item/{slug}" if slug else "https://es.wallapop.com"
+                    
+                    line = f"{item['title']} - {item['price']}€\n{item_url}\n"
+                    print(line)
+                    msg += line + '\n'
 
                 if DESKTOP_NOTIFICATION:
                     send_desktop_notification(msg)
