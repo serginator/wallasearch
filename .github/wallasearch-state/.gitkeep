@@ -1,0 +1,3 @@
+This directory is used by .github/workflows/wallasearch.yml to persist the
+active search config (config.json) and the corresponding .pickle state file
+across scheduled runs. Do not edit these files manually.

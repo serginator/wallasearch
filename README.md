@@ -43,6 +43,7 @@ OPTIONS:
       --max-price <amount> (maximum price filter)
       --telegram (send Telegram notification)
       --notify (send desktop notification)
+      --once (run a single check and exit, useful for schedulers like GitHub Actions)
 ```
 
 Examples:
@@ -186,6 +187,49 @@ koyeb services create wallasearch \
   --env TELEGRAM_CHAT_ID=your_chat_id \
   --env POSTAL_CODE=28012
 ```
+
+### Running on GitHub Actions (free)
+
+A ready-to-use workflow lives at `.github/workflows/wallasearch.yml`. It does **not**
+run automatically — it only starts a "watch" when you manually trigger it, then
+checks every 30 minutes until it expires or you stop it. State (the pickle file
+and the active search config) is committed to `.github/wallasearch-state/` so
+progress survives between runs.
+
+**1. Add repo secrets** (Settings → Secrets and variables → Actions):
+
+```
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
+```
+
+**2. Start a watch** (via GitHub UI: Actions → Wallasearch → Run workflow, or via `gh`):
+
+```bash
+gh workflow run wallasearch.yml \
+  -f search="Lovecraft" \
+  -f country="ES" \
+  -f postal_code="28012" \
+  -f duration_hours="24"
+```
+
+This runs an immediate check and then re-checks every 30 minutes for `duration_hours`
+(default 24h), after which it stops automatically.
+
+**3. Stop it early at any time:**
+
+```bash
+gh workflow run wallasearch.yml -f stop=true
+```
+
+**4. Check progress:**
+
+```bash
+gh run list --workflow=wallasearch.yml
+```
+
+Only one watch (search term) can be active at a time; starting a new one replaces
+the previous config.
 
 ### Adding search term in .env
 

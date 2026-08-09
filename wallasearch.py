@@ -182,6 +182,7 @@ def usage():
     print('      --max-price <amount> (maximum price filter)')
     print('      --telegram (send Telegram notification)')
     print('      --notify (send desktop notification)')
+    print('      --once (run a single check and exit, useful for schedulers like GitHub Actions)')
     print('')
 
 
@@ -194,11 +195,12 @@ def main():
     TELEGRAM_NOTIFICATION = False
     DESKTOP_NOTIFICATION = False
     WHAT_TO_SEARCH = None
+    RUN_ONCE = False
 
     load_dotenv()
 
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'country=', 'postal-code=', 'min-price=', 'max-price=', 'telegram', 'notify'])
+        opts, _ = getopt.getopt(sys.argv[1:], 'hs:t:', ['help', 'search=', 'time=', 'country=', 'postal-code=', 'min-price=', 'max-price=', 'telegram', 'notify', 'once'])
     except getopt.GetoptError:
         usage()
         sys.exit(2)
@@ -228,6 +230,8 @@ def main():
                 TELEGRAM_NOTIFICATION = True
             elif opt == '--notify':
                 DESKTOP_NOTIFICATION = True
+            elif opt == '--once':
+                RUN_ONCE = True
 
         if WHAT_TO_SEARCH is None:
             RAW_SEARCH = os.getenv('WHAT_TO_SEARCH')
@@ -296,6 +300,8 @@ def main():
             os._exit(2)
 
         finally:
+            if RUN_ONCE:
+                break
             time.sleep(LOOP_TIME - ((time.time() - start_time) % LOOP_TIME))
 
 if __name__ == '__main__':

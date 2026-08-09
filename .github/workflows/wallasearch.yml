@@ -1,0 +1,156 @@
+name: Wallasearch
+
+# This workflow does NOT search for anything on its own. It only becomes
+# active once you manually start a "watch" via workflow_dispatch (see below).
+# Once started, the schedule below checks every 30 minutes until the watch
+# expires (duration_hours) or you stop it manually.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      search:
+        description: 'Search term to start watching (leave empty only if using "stop")'
+        required: false
+        type: string
+      country:
+        description: 'Country code'
+        required: false
+        default: 'ES'
+        type: string
+      postal_code:
+        description: 'Postal code (optional, for location-based search)'
+        required: false
+        type: string
+      min_price:
+        description: 'Minimum price (optional)'
+        required: false
+        type: string
+      max_price:
+        description: 'Maximum price (optional)'
+        required: false
+        type: string
+      duration_hours:
+        description: 'Keep checking for this many hours, then auto-stop'
+        required: false
+        default: '24'
+        type: string
+      stop:
+        description: 'Set to true to stop the current watch immediately'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+# Avoid two runs racing to commit/push the state file at the same time.
+concurrency:
+  group: wallasearch-state
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Start or stop watch (manual trigger only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p .github/wallasearch-state
+
+          if [ "${{ inputs.stop }}" = "true" ]; then
+            rm -f .github/wallasearch-state/config.json
+            git add -A .github/wallasearch-state
+            git diff --cached --quiet || (git commit -m "Stop wallasearch watch" && git push)
+            echo "Stop requested. Watch disabled."
+            exit 0
+          fi
+
+          if [ -z "${{ inputs.search }}" ]; then
+            echo "::error::No search term provided. Pass 'search' to start a watch, or 'stop: true' to stop it."
+            exit 1
+          fi
+
+          EXPIRES_AT=$(( $(date -u +%s) + ${{ inputs.duration_hours || 24 }} * 3600 ))
+
+          cat > .github/wallasearch-state/config.json <<EOF
+          {
+            "search": "${{ inputs.search }}",
+            "country": "${{ inputs.country }}",
+            "postal_code": "${{ inputs.postal_code }}",
+            "min_price": "${{ inputs.min_price }}",
+            "max_price": "${{ inputs.max_price }}",
+            "expires_at": $EXPIRES_AT
+          }
+          EOF
+
+          git add .github/wallasearch-state/config.json
+          git diff --cached --quiet || (git commit -m "Start wallasearch watch: ${{ inputs.search }}" && git push)
+
+      - name: Check active watch
+        id: config
+        run: |
+          if [ ! -f .github/wallasearch-state/config.json ]; then
+            echo "No active watch configured. Nothing to do."
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          EXPIRES_AT=$(jq -r '.expires_at' .github/wallasearch-state/config.json)
+          NOW=$(date -u +%s)
+          if [ "$NOW" -gt "$EXPIRES_AT" ]; then
+            echo "Watch expired. Stopping."
+            rm -f .github/wallasearch-state/config.json
+            git add -A .github/wallasearch-state
+            git diff --cached --quiet || (git commit -m "Wallasearch watch expired" && git push)
+            echo "active=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "active=true" >> "$GITHUB_OUTPUT"
+          echo "search=$(jq -r '.search' .github/wallasearch-state/config.json)" >> "$GITHUB_OUTPUT"
+          echo "country=$(jq -r '.country' .github/wallasearch-state/config.json)" >> "$GITHUB_OUTPUT"
+          echo "postal_code=$(jq -r '.postal_code' .github/wallasearch-state/config.json)" >> "$GITHUB_OUTPUT"
+          echo "min_price=$(jq -r '.min_price' .github/wallasearch-state/config.json)" >> "$GITHUB_OUTPUT"
+          echo "max_price=$(jq -r '.max_price' .github/wallasearch-state/config.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Run wallasearch
+        if: steps.config.outputs.active == 'true'
+        working-directory: .github/wallasearch-state
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          ARGS=(-s "${{ steps.config.outputs.search }}" --once --telegram --country "${{ steps.config.outputs.country }}")
+
+          POSTAL_CODE="${{ steps.config.outputs.postal_code }}"
+          MIN_PRICE="${{ steps.config.outputs.min_price }}"
+          MAX_PRICE="${{ steps.config.outputs.max_price }}"
+
+          [ -n "$POSTAL_CODE" ] && [ "$POSTAL_CODE" != "null" ] && ARGS+=(--postal-code "$POSTAL_CODE")
+          [ -n "$MIN_PRICE" ] && [ "$MIN_PRICE" != "null" ] && ARGS+=(--min-price "$MIN_PRICE")
+          [ -n "$MAX_PRICE" ] && [ "$MAX_PRICE" != "null" ] && ARGS+=(--max-price "$MAX_PRICE")
+
+          python ../../wallasearch.py "${ARGS[@]}"
+
+      - name: Persist updated state
+        if: steps.config.outputs.active == 'true'
+        run: |
+          git add .github/wallasearch-state
+          git diff --cached --quiet || (git commit -m "Update wallasearch state [skip ci]" && git push)

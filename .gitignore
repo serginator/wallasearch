@@ -1,6 +1,9 @@
 venv
 .venv
 *.pickle
+# The GitHub Actions workflow persists its search state (config + pickle) here,
+# so it must stay tracked in git even though other .pickle files are ignored.
+!.github/wallasearch-state/*.pickle
 
 # dotenv environment variables file
 .env
