@@ -39,21 +39,40 @@ OPTIONS:
   -t, --time <time> (default 60, in seconds)
       --country <country_code> (default ES)
       --postal-code <postal_code> (resolve location via postal code, otherwise uses geo-IP)
+      --min-price <amount> (minimum price filter)
+      --max-price <amount> (maximum price filter)
       --telegram (send Telegram notification)
       --notify (send desktop notification)
 ```
 
-Example:
+Examples:
+
+```bash
+# Basic search
+python wallasearch.py -s "Lovecraft"
+
+# Search with price range
+python wallasearch.py -s "iPhone" --min-price 100 --max-price 500
+
+# Search with notifications
+python wallasearch.py -s "Lovecraft" --notify --telegram
+```
+
+Output:
 
 ```
 ~/wallasearch ᐅ python wallasearch.py -s "Lovecraft"
 Searching Lovecraft...
-New items:
+New items found:
 
-Cthulhu 6 figuras de resina - 15.0
-Juego de LOVECRAFT - 25.0
-Lovecraft  - 5.0
-...
+Cthulhu 6 figuras de resina - 15.0€
+https://es.wallapop.com/item/cthulhu-6-figuras-de-resina
+
+Juego de LOVECRAFT - 25.0€
+https://es.wallapop.com/item/juego-de-lovecraft
+
+Lovecraft  - 5.0€
+https://es.wallapop.com/item/lovecraft
 
 Searching Lovecraft...
 ```
