@@ -90,6 +90,8 @@ COUNTRY_CODE = 'ES'  # country code to search by default
 
 Add `--notify` to the command line and it will send a native desktop notification (works on Windows, macOS, and Linux via `plyer`).
 
+On macOS, install [`terminal-notifier`](https://github.com/julienXX/terminal-notifier) (`brew install terminal-notifier`) to make the notification clickable — it opens your Wallapop search results page (with your keywords, price range, and location filters applied) directly in the browser. Without it, macOS falls back to a plain `osascript` notification that isn't clickable.
+
 ### Notifying through Telegram
 
 Add `--telegram` to the command line and it will send a notification to your Telegram.

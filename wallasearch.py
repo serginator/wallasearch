@@ -72,6 +72,21 @@ def fetch_items(keywords, country_code, lat=None, lon=None, min_price=None, max_
     ]
 
 
+def build_search_url(keywords, lat=None, lon=None, min_price=None, max_price=None):
+    params = {
+        'filters_source': 'search_box',
+        'keywords': keywords.replace('+', ' '),
+    }
+    if min_price is not None:
+        params['min_sale_price'] = min_price
+    if max_price is not None:
+        params['max_sale_price'] = max_price
+    if lat and lon:
+        params['latitude'] = lat
+        params['longitude'] = lon
+    return f"https://es.wallapop.com/app/search?{urllib.parse.urlencode(params)}"
+
+
 def send_telegram_notification(message):
     try:
         TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -89,9 +104,11 @@ def send_telegram_notification(message):
         print('Error sending Telegram notification')
         os._exit(1)
 
-def send_desktop_notification(message):
+def send_desktop_notification(message, click_url=None):
     try:
         import platform
+        import shutil
+        import subprocess
         print('Sending desktop notification...')
         lines = [l for l in message.strip().splitlines() if l]
         
@@ -115,8 +132,22 @@ def send_desktop_notification(message):
             summary = lines[0] if lines else "New items found"
             
         if platform.system() == 'Darwin':
-            safe = summary.replace('"', "'").replace('\\', '')
-            os.system(f'osascript -e \'display notification "{safe}" with title "New items in Wallapop" sound name "default"\'')
+            terminal_notifier = shutil.which('terminal-notifier')
+            if terminal_notifier and click_url:
+                # terminal-notifier supports -open to launch a URL on click
+                subprocess.run([
+                    terminal_notifier,
+                    '-title', 'New items in Wallapop',
+                    '-message', summary,
+                    '-open', click_url,
+                    '-sound', 'default',
+                ])
+            else:
+                if not terminal_notifier:
+                    print('Tip: install terminal-notifier (brew install terminal-notifier) '
+                          'to make notifications clickable and open the Wallapop URL.')
+                safe = summary.replace('"', "'").replace('\\', '')
+                os.system(f'osascript -e \'display notification "{safe}" with title "New items in Wallapop" sound name "default"\'')
         else:
             from plyer import notification
             notification.notify(title='New items in Wallapop', message=summary, timeout=10)
@@ -244,7 +275,8 @@ def main():
                     msg += line + '\n'
 
                 if DESKTOP_NOTIFICATION:
-                    send_desktop_notification(msg)
+                    search_url = build_search_url(RAW_SEARCH, lat, lon, MIN_PRICE, MAX_PRICE)
+                    send_desktop_notification(msg, click_url=search_url)
 
                 if TELEGRAM_NOTIFICATION:
                     send_telegram_notification(msg)
