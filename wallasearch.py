@@ -93,11 +93,27 @@ def send_desktop_notification(message):
     try:
         import platform
         print('Sending desktop notification...')
-        # Truncate to first line + item count so the notification fits
         lines = [l for l in message.strip().splitlines() if l]
-        summary = lines[0]
-        if len(lines) > 1:
-            summary += f' (+{len(lines) - 1} more)'
+        
+        # Group into items (title+price, url, blank line)
+        items = []
+        i = 0
+        while i < len(lines):
+            if i + 1 < len(lines) and lines[i+1].startswith('https://'):
+                items.append(f"{lines[i]}\n{lines[i+1]}")
+                i += 2
+            else:
+                items.append(lines[i])
+                i += 1
+        
+        # Show first item with URL, or just count if too many
+        if len(items) == 1:
+            summary = items[0]
+        elif len(items) > 1:
+            summary = f"{items[0]}\n\n(+{len(items) - 1} more items)"
+        else:
+            summary = lines[0] if lines else "New items found"
+            
         if platform.system() == 'Darwin':
             safe = summary.replace('"', "'").replace('\\', '')
             os.system(f'osascript -e \'display notification "{safe}" with title "New items in Wallapop" sound name "default"\'')
