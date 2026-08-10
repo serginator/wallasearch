@@ -97,12 +97,14 @@ On macOS, install [`terminal-notifier`](https://github.com/julienXX/terminal-not
 
 Add `--telegram` to the command line and it will send a notification to your Telegram.
 
-You need to create a bot (@BotFather), get its token and your internal id (@RawDataBot), then add them to the `.env` file:
+You need to create a bot (@BotFather), get its token and your internal id (@RawDataBot), then copy `.env.example` to `.env` and fill it in:
 
 ```
 TELEGRAM_BOT_TOKEN="1234567890:XXX"
 TELEGRAM_CHAT_ID="1234567"
 ```
+
+`.env` is gitignored, so your real token/chat ID never get committed. `.env.example` stays in the repo as the template.
 
 ### Running on Heroku
 
