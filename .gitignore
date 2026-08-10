@@ -9,3 +9,6 @@ venv
 .env
 
 __pycache__
+
+#nodeterm
+.nodeterm
