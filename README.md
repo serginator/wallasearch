@@ -209,12 +209,11 @@ TELEGRAM_CHAT_ID
 gh workflow run wallasearch.yml \
   -f search="Lovecraft" \
   -f country="ES" \
-  -f postal_code="28012" \
-  -f duration_hours="24"
+  -f postal_code="28012"
 ```
 
-This runs an immediate check and then re-checks every 30 minutes for `duration_hours`
-(default 24h), after which it stops automatically.
+This runs an immediate check and then re-checks every 30 minutes indefinitely.
+Optionally pass `-f duration_hours="24"` to auto-stop after that many hours instead.
 
 **3. Stop it early at any time:**
 

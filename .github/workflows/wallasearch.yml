@@ -31,9 +31,9 @@ on:
         required: false
         type: string
       duration_hours:
-        description: 'Keep checking for this many hours, then auto-stop'
+        description: 'Keep checking for this many hours, then auto-stop (leave empty to run indefinitely until stopped manually)'
         required: false
-        default: '24'
+        default: ''
         type: string
       stop:
         description: 'Set to true to stop the current watch immediately'
@@ -87,7 +87,10 @@ jobs:
             exit 1
           fi
 
-          EXPIRES_AT=$(( $(date -u +%s) + ${{ inputs.duration_hours || 24 }} * 3600 ))
+          EXPIRES_AT=""
+          if [ -n "${{ inputs.duration_hours }}" ]; then
+            EXPIRES_AT=$(( $(date -u +%s) + ${{ inputs.duration_hours }} * 3600 ))
+          fi
 
           cat > .github/wallasearch-state/config.json <<EOF
           {
@@ -96,7 +99,7 @@ jobs:
             "postal_code": "${{ inputs.postal_code }}",
             "min_price": "${{ inputs.min_price }}",
             "max_price": "${{ inputs.max_price }}",
-            "expires_at": $EXPIRES_AT
+            "expires_at": ${EXPIRES_AT:-null}
           }
           EOF
 
@@ -114,7 +117,7 @@ jobs:
 
           EXPIRES_AT=$(jq -r '.expires_at' .github/wallasearch-state/config.json)
           NOW=$(date -u +%s)
-          if [ "$NOW" -gt "$EXPIRES_AT" ]; then
+          if [ "$EXPIRES_AT" != "null" ] && [ "$NOW" -gt "$EXPIRES_AT" ]; then
             echo "Watch expired. Stopping."
             rm -f .github/wallasearch-state/config.json
             git add -A .github/wallasearch-state
